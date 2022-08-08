@@ -1,11 +1,18 @@
 import { AuthTokenError } from './../services/errors/AuthTokenError';
 import { GetServerSideProps, GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
 import { destroyCookie, parseCookies } from "nookies";
+import decode from 'jwt-decode';
+import { validateUserPermissions } from './validateUserPermissions';
 
-export function withSSRAuth<P>(fn: GetServerSideProps<P>): GetServerSideProps {
+type withSSRAuthOptions = {
+  permissions?: string[];
+  roles?: string[];
+}
+
+export function withSSRAuth<P>(fn: GetServerSideProps<P>, options?: withSSRAuthOptions): GetServerSideProps {
   return async (ctx: GetServerSidePropsContext): Promise<GetServerSidePropsResult<P>> => {
     const cookies = parseCookies(ctx);
-    const token = cookies['nextauth.token']
+    const token = cookies['nextauthjwt.token']
 
     if (!token) {
       return {
@@ -16,20 +23,48 @@ export function withSSRAuth<P>(fn: GetServerSideProps<P>): GetServerSideProps {
       }
     }
 
-    try {
-      return await fn(ctx)
+    if (options) {
+      const user = decode<{ permissions: string[], roles: string[] }>(token);
 
+      const { permissions, roles } = options;
+
+      const userHaValidPermissions = validateUserPermissions({
+        user,
+        permissions,
+        roles
+      })
+
+      // The user don`t have permissions to access the page
+      if (!userHaValidPermissions) {
+        return {
+          redirect: {
+            destination: '/dashboard',
+            permanent: false
+          }
+        }
+      }
+    }
+
+    try {
+      return await fn(ctx);
     } catch (error) {
       if (error instanceof AuthTokenError) {
-        destroyCookie(undefined, "nextauthjwt.token");
-        destroyCookie(undefined, "nextauthjwt.refreshToken");
+        destroyCookie(ctx, 'nextauthjwt.token')
+        destroyCookie(ctx, 'nextauthjwt.refreshToken')
     
         return {
           redirect: {
-            destination: "/",
-            permanent: false,
-          },
-        };
+            destination: '/',
+            permanent: false
+          }
+        }
+      }
+    
+      return {
+        redirect: {
+          destination: '/error',
+          permanent: false
+        }
       }
     }
   }

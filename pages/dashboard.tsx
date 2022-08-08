@@ -1,16 +1,20 @@
 import { useContext, useEffect } from "react";
+import { Can } from "../components/Can";
 
 import { AuthContext } from "../context/AuthContext";
 
 import { setupAPIClient } from "../services/api";
 import { api } from "../services/apiClient";
 
-import { destroyCookie } from "nookies";
-
 import { withSSRAuth } from "../utils/withSRRAuth";
 
 export default function Dashboard() {
-  const { user } = useContext(AuthContext);
+  const { user, signOut } = useContext(AuthContext);
+
+  // const userCanSeeMetrics = useCan({
+  //   permissions: ["metrics.list"],
+  // });
+
   useEffect(() => {
     api
       .get("/me")
@@ -24,6 +28,12 @@ export default function Dashboard() {
   return (
     <div>
       <h1>Hello World, {user?.email}</h1>
+
+      <button onClick={signOut}>Sign Out</button>
+
+      <Can permissions={["metrics.list"]}>
+        <div>Métricas</div>
+      </Can>
     </div>
   );
 }
