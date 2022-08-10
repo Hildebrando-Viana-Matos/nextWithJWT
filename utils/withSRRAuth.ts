@@ -34,7 +34,7 @@ export function withSSRAuth<P>(fn: GetServerSideProps<P>, options?: withSSRAuthO
         roles
       })
 
-      // The user don`t have permissions to access the page
+      // The user don`t have permissions to access this page
       if (!userHaValidPermissions) {
         return {
           redirect: {
